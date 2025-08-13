@@ -8,7 +8,7 @@ from pathlib import Path
 import json as _json
 
 # =========================
-# BRANDING (opcional, via branding.json)
+# BRANDING (pode sobrescrever via branding.json)
 # =========================
 BRAND = {
     "brand_name": "GR-CRM",
@@ -164,7 +164,25 @@ def load_profile(file_bytes):
     return json.loads(file_bytes.decode("utf-8"))
 
 # =========================
-# HEADER (limpo, sem splash)
+# DEFAULTS + sessão
+# =========================
+DEFAULT_PARAMS = {
+    "meta": 20000.0,
+    "envios": 15000.0,
+    "frequencia": 4,
+    "open_rate": 0.22,
+    "ctr": 0.018,
+    "cvr": 0.017,
+    "ticket": 180.0,
+    "clientes_ativos": 10000,
+    "pedidos_periodo": 1800,
+    "pedidos_repetidos": 420
+}
+if "params" not in st.session_state:
+    st.session_state["params"] = DEFAULT_PARAMS.copy()
+
+# =========================
+# HEADER (limpo)
 # =========================
 c_logo, c_text = st.columns([0.25, 1], gap="small")
 with c_logo:
@@ -179,21 +197,6 @@ st.markdown("<div class='hr'></div>", unsafe_allow_html=True)
 # =========================
 with st.sidebar:
     st.markdown("### 🎛️ Presets de parâmetros")
-    default_params = {
-        "meta": 20000.0,
-        "envios": 15000.0,
-        "frequencia": 4,
-        "open_rate": 0.22,
-        "ctr": 0.018,
-        "cvr": 0.017,
-        "ticket": 180.0,
-        "clientes_ativos": 10000,
-        "pedidos_periodo": 1800,
-        "pedidos_repetidos": 420
-    }
-    if "params" not in st.session_state:
-        st.session_state["params"] = default_params.copy()
-
     up = st.file_uploader("Carregar preset (.json)", type=["json"])
     if up:
         try:
@@ -221,11 +224,10 @@ tabs = st.tabs([
     "🧯 Detratores & Pontos Positivos"
 ])
 
-# ---------- Parâmetros (com botão Salvar) ----------
+# ---------- Parâmetros (com Salvar e Limpar) ----------
 with tabs[0]:
     st.subheader("Parâmetros do período")
 
-    # Formulário: só aplica quando clicar em "Salvar"
     with st.form("params_form", clear_on_submit=False):
         p = st.session_state["params"]
 
@@ -254,7 +256,11 @@ with tabs[0]:
         with c6:
             pedidos_repetidos = st.number_input("Pedidos repetidos no período", min_value=0, value=int(p["pedidos_repetidos"]), step=10)
 
-        submitted = st.form_submit_button("💾 Salvar", use_container_width=True)
+        csave, cclear = st.columns(2)
+        with csave:
+            submitted = st.form_submit_button("💾 Salvar", use_container_width=True)
+        with cclear:
+            cleared = st.form_submit_button("🧹 Limpar", use_container_width=True)
 
     if submitted:
         p["meta"] = meta
@@ -269,6 +275,11 @@ with tabs[0]:
         p["pedidos_repetidos"] = pedidos_repetidos
         st.session_state["params"] = p
         st.success("✅ Parâmetros salvos! Tabelas atualizadas.", icon="✅")
+
+    if cleared:
+        st.session_state["params"] = DEFAULT_PARAMS.copy()
+        st.info("Campos limpos. Valores padrão restaurados.")
+        st.rerun()
 
 # ---------- Dashboard ----------
 with tabs[1]:
