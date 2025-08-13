@@ -7,10 +7,12 @@ import datetime as dt
 from pathlib import Path
 import json as _json
 
-# ---------- BRANDING ----------
+# =========================
+# BRANDING (opcional, via branding.json)
+# =========================
 BRAND = {
-    "brand_name": "IntelliDash",
-    "brand_tagline": "CRM Inteligente, Sem Planilhas",
+    "brand_name": "GR-CRM",
+    "brand_tagline": "Análise de Funil • Plano Inteligente • Sem Planilhas",
     "primary_color": "#6C5CE7",
     "secondary_color": "#A29BFE",
     "accent_color": "#22c55e"
@@ -21,19 +23,25 @@ try:
 except Exception:
     pass
 
-# ---------- PAGE CONFIG (primeira chamada Streamlit) ----------
+# =========================
+# CONFIG STREAMLIT (1ª chamada)
+# =========================
 st.set_page_config(
-    page_title=f"{BRAND['brand_name']} — IntelliDash",
+    page_title="GR-CRM IntelliDash",
     page_icon="assets/logo.svg",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# ---------- THEME / CSS ----------
+# =========================
+# THEME/CSS
+# =========================
 with open("assets/theme.css", "r", encoding="utf-8") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-# ---------- HELPERS ----------
+# =========================
+# HELPERS
+# =========================
 def ceil_int(x):
     try:
         return int(math.ceil(float(x)))
@@ -45,6 +53,14 @@ def fmt_money(v):
         return f"R$ {float(v):,.2f}".replace(",", "X").replace(".", ",").replace("X",".")
     except:
         return "-"
+
+def to_rate(v):
+    """Aceita 0–1 (fração) ou 0–100 (%). Converte para fração 0–1."""
+    try:
+        v = float(v)
+    except:
+        return 0.0
+    return v/100.0 if v > 1 else v
 
 def compute_forward(params):
     envios = params["envios"]
@@ -114,7 +130,14 @@ def optimize_plan(meta, base, max_multipliers=None, weights=None):
                         changed = sum([m_env>1, m_ctr>1, m_cvr>1, m_tk>1])
                         cost += changed*0.3
                         if (best is None) or (cost < best["cost"]):
-                            best = {"params":p,"kpi":k,"rev":rev,"cost":cost,"multipliers":{"envios":m_env,"ctr":m_ctr,"cvr":m_cvr,"ticket":m_tk},"base_rev":base_rev}
+                            best = {
+                                "params": p,
+                                "kpi": k,
+                                "rev": rev,
+                                "cost": cost,
+                                "multipliers": {"envios":m_env,"ctr":m_ctr,"cvr":m_cvr,"ticket":m_tk},
+                                "base_rev": base_rev
+                            }
     return best
 
 def funnel_df(kpi):
@@ -140,18 +163,20 @@ def save_profile(params):
 def load_profile(file_bytes):
     return json.loads(file_bytes.decode("utf-8"))
 
-# ---------- HEADER ----------
-c_logo, c_text = st.columns([1,3])
+# =========================
+# HEADER (limpo, sem splash)
+# =========================
+c_logo, c_text = st.columns([0.25, 1], gap="small")
 with c_logo:
-    st.image("assets/logo.svg", use_column_width=True)
+    st.image("assets/logo.svg", use_column_width=True)  # ícone sem texto
 with c_text:
-    st.title(f"{BRAND['brand_name']} — CRM IntelliDash")
-    st.caption(BRAND.get("brand_tagline",""))
+    st.title("GR-CRM IntelliDash")  # título único
 
-st.image("assets/splash.svg", use_column_width=True)
 st.markdown("<div class='hr'></div>", unsafe_allow_html=True)
 
-# ---------- SIDEBAR / PRESETS ----------
+# =========================
+# SIDEBAR / PRESETS
+# =========================
 with st.sidebar:
     st.markdown("### 🎛️ Presets de parâmetros")
     default_params = {
@@ -184,37 +209,68 @@ with st.sidebar:
         mime="application/json"
     )
 
-# ---------- TABS ----------
-tabs = st.tabs(["🧩 Parâmetros","📊 Dashboard","🌀 Funil Inverso","🔁 Taxa de Recompra","🧠 Plano Inteligente","🧯 Detratores & Pontos Positivos"])
+# =========================
+# TABS
+# =========================
+tabs = st.tabs([
+    "🧩 Parâmetros",
+    "📊 Dashboard",
+    "🌀 Funil Inverso",
+    "🔁 Taxa de Recompra",
+    "🧠 Plano Inteligente",
+    "🧯 Detratores & Pontos Positivos"
+])
 
+# ---------- Parâmetros (com botão Salvar) ----------
 with tabs[0]:
     st.subheader("Parâmetros do período")
-    p = st.session_state["params"]
-    c1,c2,c3 = st.columns(3)
-    with c1:
-        p["meta"] = st.number_input("Meta de Receita (R$)", min_value=0.0, value=float(p["meta"]), step=100.0, format="%.2f")
-        p["envios"] = st.number_input("Envios por disparo (base elegível)", min_value=0.0, value=float(p["envios"]), step=100.0)
-    with c2:
-        p["frequencia"] = st.number_input("Frequência de disparos no período", min_value=1, value=int(p["frequencia"]), step=1)
-        p["ticket"] = st.number_input("Ticket médio (R$)", min_value=0.0, value=float(p["ticket"]), step=1.0, format="%.2f")
-    with c3:
-        p["open_rate"] = st.number_input("Open Rate (por enviado)", min_value=0.0, max_value=1.0, value=float(p["open_rate"]), step=0.01, format="%.2f")
-        p["ctr"] = st.number_input("CTR (cliques por enviado)", min_value=0.0, max_value=1.0, value=float(p["ctr"]), step=0.001, format="%.3f")
-        p["cvr"] = st.number_input("CVR (conversão do clique)", min_value=0.0, max_value=1.0, value=float(p["cvr"]), step=0.001, format="%.3f")
 
-    st.markdown("<div class='hr'></div>", unsafe_allow_html=True)
-    st.subheader("Dados para Taxa de Recompra (opcional)")
-    c4,c5,c6 = st.columns(3)
-    with c4:
-        p["clientes_ativos"] = st.number_input("Clientes ativos no período", min_value=0, value=int(p["clientes_ativos"]), step=10)
-    with c5:
-        p["pedidos_periodo"] = st.number_input("Pedidos totais no período", min_value=0, value=int(p["pedidos_periodo"]), step=10)
-    with c6:
-        p["pedidos_repetidos"] = st.number_input("Pedidos repetidos no período", min_value=0, value=int(p["pedidos_repetidos"]), step=10)
+    # Formulário: só aplica quando clicar em "Salvar"
+    with st.form("params_form", clear_on_submit=False):
+        p = st.session_state["params"]
 
-    st.session_state["params"] = p
-    st.success("Parâmetros salvos! Veja as próximas abas.")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            meta = st.number_input("Meta de Receita (R$)", min_value=0.0, value=float(p["meta"]), step=100.0, format="%.2f")
+            envios = st.number_input("Envios por disparo (base elegível)", min_value=0.0, value=float(p["envios"]), step=100.0)
+        with c2:
+            freq = st.number_input("Frequência de disparos no período", min_value=1, value=int(p["frequencia"]), step=1)
+            ticket = st.number_input("Ticket médio (R$)", min_value=0.0, value=float(p["ticket"]), step=1.0, format="%.2f")
+        with c3:
+            or_raw  = st.number_input("Taxa de Abertura (Open Rate) — digite % ou fração",
+                                      min_value=0.0, value=float(p["open_rate"]*100), step=0.1, help="Ex.: 22 ou 0,22")
+            ctr_raw = st.number_input("Taxa de Clique (CTR) — digite % ou fração",
+                                      min_value=0.0, value=float(p["ctr"]*100), step=0.1, help="Ex.: 1,8 ou 0,018")
+            cvr_raw = st.number_input("Taxa de Conversão (CVR) — digite % ou fração",
+                                      min_value=0.0, value=float(p["cvr"]*100), step=0.1, help="Ex.: 1,7 ou 0,017")
 
+        st.markdown("<div class='hr'></div>", unsafe_allow_html=True)
+        st.subheader("Dados para Taxa de Recompra (opcional)")
+        c4, c5, c6 = st.columns(3)
+        with c4:
+            clientes_ativos = st.number_input("Clientes ativos no período", min_value=0, value=int(p["clientes_ativos"]), step=10)
+        with c5:
+            pedidos_periodo = st.number_input("Pedidos totais no período", min_value=0, value=int(p["pedidos_periodo"]), step=10)
+        with c6:
+            pedidos_repetidos = st.number_input("Pedidos repetidos no período", min_value=0, value=int(p["pedidos_repetidos"]), step=10)
+
+        submitted = st.form_submit_button("💾 Salvar", use_container_width=True)
+
+    if submitted:
+        p["meta"] = meta
+        p["envios"] = envios
+        p["frequencia"] = freq
+        p["ticket"] = ticket
+        p["open_rate"] = to_rate(or_raw)
+        p["ctr"] = to_rate(ctr_raw)
+        p["cvr"] = to_rate(cvr_raw)
+        p["clientes_ativos"] = clientes_ativos
+        p["pedidos_periodo"] = pedidos_periodo
+        p["pedidos_repetidos"] = pedidos_repetidos
+        st.session_state["params"] = p
+        st.success("✅ Parâmetros salvos! Tabelas atualizadas.", icon="✅")
+
+# ---------- Dashboard ----------
 with tabs[1]:
     st.subheader("Dashboard")
     k = compute_forward(st.session_state["params"])
@@ -245,6 +301,7 @@ with tabs[1]:
     cB.metric("Aberturas Previstas", ceil_int(k["aberturas"]))
     cC.metric("Cliques Previstos", ceil_int(k["cliques"]))
 
+# ---------- Funil Inverso ----------
 with tabs[2]:
     st.subheader("Funil Inverso (o que é necessário para bater a meta)")
     p = st.session_state["params"]
@@ -256,6 +313,7 @@ with tabs[2]:
     c4.metric("Cliques necessários", ceil_int(inv["cliques_need"]))
     c5.metric("Compras necessárias", ceil_int(inv["compras_need"]))
 
+# ---------- Taxa de Recompra ----------
 with tabs[3]:
     st.subheader("Taxa de Recompra")
     p = st.session_state["params"]
@@ -269,6 +327,7 @@ with tabs[3]:
     m2.metric("Pedidos repetidos", ceil_int(repetidos))
     m3.metric("Taxa de Recompra", f"{taxa_recompra*100:.1f}%")
 
+# ---------- Plano Inteligente ----------
 with tabs[4]:
     st.subheader("Plano Inteligente")
     p = st.session_state["params"]
@@ -303,6 +362,7 @@ with tabs[4]:
         st.dataframe(plan_df, use_container_width=True, hide_index=True)
         st.download_button("⬇️ Baixar plano (CSV)", data=plan_df.to_csv(index=False).encode("utf-8"), file_name="plano_inteligente.csv", mime="text/csv")
 
+# ---------- Detratores & Pontos Positivos ----------
 with tabs[5]:
     st.subheader("Detratores & Pontos Positivos")
     tips, wins = heuristics(st.session_state["params"])
@@ -316,6 +376,7 @@ with tabs[5]:
         for w in wins:
             st.markdown(f"- {w}")
 
+# ---------- FOOTER ----------
 st.markdown("<div class='hr'></div>", unsafe_allow_html=True)
 st.markdown(
     f"<div class='brand-footer'><img src='assets/logo.svg'/> "
