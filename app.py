@@ -1,41 +1,39 @@
-
 import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
 import json, math, io
 import datetime as dt
-
-st.set_page_config(page_title="CRM IntelliDash (No-Excel)", page_icon="📈", layout="wide")
-
-with open("assets/theme.css","r",encoding="utf-8") as f:
-    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-
-# ---------- BRANDING ----------
 from pathlib import Path
 import json as _json
-BRAND = {"brand_name":"IntelliDash","brand_tagline":"CRM Inteligente, Sem Planilhas","primary_color":"#6C5CE7","secondary_color":"#A29BFE","accent_color":"#22c55e"}
+
+# ---------- BRANDING ----------
+BRAND = {
+    "brand_name": "IntelliDash",
+    "brand_tagline": "CRM Inteligente, Sem Planilhas",
+    "primary_color": "#6C5CE7",
+    "secondary_color": "#A29BFE",
+    "accent_color": "#22c55e"
+}
 try:
-    with open("branding.json","r",encoding="utf-8") as _bf:
+    with open("branding.json", "r", encoding="utf-8") as _bf:
         BRAND.update(_json.load(_bf))
 except Exception:
     pass
 
-st.set_page_config(page_title=f"{BRAND['brand_name']} — IntelliDash", page_icon="assets/logo.svg", layout="wide")
+# ---------- PAGE CONFIG (primeira chamada Streamlit) ----------
+st.set_page_config(
+    page_title=f"{BRAND['brand_name']} — IntelliDash",
+    page_icon="assets/logo.svg",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
-# Header with logo and splash
-c_logo, c_text = st.columns([1,3])
-with c_logo:
-    st.image("assets/logo.svg", use_column_width=True)
-with c_text:
-    st.title(f"{BRAND['brand_name']} — CRM IntelliDash")
-    st.caption(BRAND.get("brand_tagline",""))
+# ---------- THEME / CSS ----------
+with open("assets/theme.css", "r", encoding="utf-8") as f:
+    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-st.image("assets/splash.svg", use_column_width=True)
-st.markdown("<div class='hr'></div>", unsafe_allow_html=True)
-
-
-# ------------- Helpers -------------
+# ---------- HELPERS ----------
 def ceil_int(x):
     try:
         return int(math.ceil(float(x)))
@@ -69,13 +67,11 @@ def compute_forward(params):
     }
 
 def compute_inverse(meta, params):
-    """ Calcula o necessário em cada etapa para bater a meta (mantendo taxas). """
     ticket = params["ticket"]
     cvr = params["cvr"]
     ctr = params["ctr"]
     orate = params["open_rate"]
     freq = params["frequencia"]
-    # compras necessárias e cliques/aberturas/envios necessários (por período)
     compras_need = 0 if ticket==0 else meta / ticket
     cliques_need = 0 if cvr==0 else compras_need / cvr
     envios_periodo_need = 0 if ctr==0 else cliques_need / ctr
@@ -129,9 +125,9 @@ def funnel_df(kpi):
 def heuristics(params):
     tips, wins = [], []
     if params["open_rate"] < 0.18: tips.append("Open Rate < 18%: melhorar assuntos, segmentar por engajamento e aquecer domínio.")
-    else: wins.append("Open Rate saudável — mantenha testes A/B de assunto.")
+    else: wins.append("Open Rate saudável — manter testes A/B de assunto.")
     if params["ctr"] < 0.015: tips.append("CTR < 1,5%: aumentar blocos de oferta e CTAs claros; produtos best-sellers acima da dobra.")
-    else: wins.append("CTR ok — explore recomendação dinâmica e CTA secundário.")
+    else: wins.append("CTR ok — explorar recomendação dinâmica e CTA secundário.")
     if params["cvr"] < 0.015: tips.append("CVR < 1,5%: landing específica por campanha, prova social e checkout simplificado.")
     else: wins.append("CVR consistente — testar bundles e escadas de valor.")
     if params["ticket"] < 120: tips.append("Ticket médio baixo: bundle/kit, frete grátis acima de X, cross/upsell.")
@@ -144,10 +140,18 @@ def save_profile(params):
 def load_profile(file_bytes):
     return json.loads(file_bytes.decode("utf-8"))
 
-# ------------- UI -------------
+# ---------- HEADER ----------
+c_logo, c_text = st.columns([1,3])
+with c_logo:
+    st.image("assets/logo.svg", use_column_width=True)
+with c_text:
+    st.title(f"{BRAND['brand_name']} — CRM IntelliDash")
+    st.caption(BRAND.get("brand_tagline",""))
 
+st.image("assets/splash.svg", use_column_width=True)
+st.markdown("<div class='hr'></div>", unsafe_allow_html=True)
 
-
+# ---------- SIDEBAR / PRESETS ----------
 with st.sidebar:
     st.markdown("### 🎛️ Presets de parâmetros")
     default_params = {
@@ -158,7 +162,6 @@ with st.sidebar:
         "ctr": 0.018,
         "cvr": 0.017,
         "ticket": 180.0,
-        # blocos para cálculos adicionais
         "clientes_ativos": 10000,
         "pedidos_periodo": 1800,
         "pedidos_repetidos": 420
@@ -174,8 +177,14 @@ with st.sidebar:
         except Exception as e:
             st.error(f"Erro ao carregar preset: {e}")
 
-    st.download_button("⬇️ Baixar preset atual", data=save_profile(st.session_state["params"]), file_name="preset_crm.json", mime="application/json")
+    st.download_button(
+        "⬇️ Baixar preset atual",
+        data=save_profile(st.session_state["params"]),
+        file_name="preset_crm.json",
+        mime="application/json"
+    )
 
+# ---------- TABS ----------
 tabs = st.tabs(["🧩 Parâmetros","📊 Dashboard","🌀 Funil Inverso","🔁 Taxa de Recompra","🧠 Plano Inteligente","🧯 Detratores & Pontos Positivos"])
 
 with tabs[0]:
@@ -253,7 +262,6 @@ with tabs[3]:
     clientes = max(p["clientes_ativos"], 1)
     pedidos = p["pedidos_periodo"]
     repetidos = p["pedidos_repetidos"]
-    # Exemplo de métricas
     avg_pedidos_por_cliente = pedidos / clientes
     taxa_recompra = 0 if pedidos==0 else repetidos / pedidos
     m1,m2,m3 = st.columns(3)
@@ -309,8 +317,8 @@ with tabs[5]:
             st.markdown(f"- {w}")
 
 st.markdown("<div class='hr'></div>", unsafe_allow_html=True)
-st.caption("Valores do funil (Envios, Aberturas, Cliques, Compras) são sempre **arredondados para cima** no dashboard.")
-
-
-st.markdown("<div class='hr'></div>", unsafe_allow_html=True)
-st.markdown(f"<div class='brand-footer'><img src='assets/logo.svg'/> <span>{BRAND['brand_name']} • © {dt.datetime.now().year}</span></div>", unsafe_allow_html=True)
+st.markdown(
+    f"<div class='brand-footer'><img src='assets/logo.svg'/> "
+    f"<span>{BRAND['brand_name']} • © {dt.datetime.now().year}</span></div>",
+    unsafe_allow_html=True
+)
