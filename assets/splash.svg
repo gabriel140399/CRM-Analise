@@ -1,0 +1,20 @@
+<svg width="1200" height="400" viewBox="0 0 1200 400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+      <stop stop-color="#6C5CE7" offset="0%"/>
+      <stop stop-color="#A29BFE" offset="100%"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="400" fill="#0f1116"/>
+  <text x="50%" y="45%" dominant-baseline="middle" text-anchor="middle" font-family="Inter,Arial" font-size="64" fill="#FFFFFF">CRM IntelliDash</text>
+  <text x="50%" y="60%" dominant-baseline="middle" text-anchor="middle" font-family="Inter,Arial" font-size="26" fill="#A6A6A6">
+    Análise de Funil • Plano Inteligente • Sem Planilhas
+  </text>
+  <g transform="translate(350,280)">
+    <rect x="0" y="-40" width="40" height="80" rx="8" fill="url(#g)" />
+    <rect x="60" y="-80" width="40" height="120" rx="8" fill="url(#g)" />
+    <rect x="120" y="-120" width="40" height="160" rx="8" fill="url(#g)" />
+    <rect x="180" y="-160" width="40" height="200" rx="8" fill="url(#g)" />
+    <path d="M 0 0 Q 120 -80 200 -160" stroke="#6C5CE7" stroke-width="3" fill="none"/>
+  </g>
+</svg>
