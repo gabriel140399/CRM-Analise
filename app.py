@@ -1,10 +1,11 @@
+# app.py — GR-CRM IntelliDash (Corporate)
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-import json, math, io
+import json, math
 import datetime as dt
-from pathlib import Path
 import json as _json
 
 # =========================
@@ -114,6 +115,7 @@ def optimize_plan(meta, base, max_multipliers=None, weights=None):
     best = None
     base_k = compute_forward(base)
     base_rev = base_k["receita_prev"]
+
     for m_env in max_multipliers["envios"]:
         for m_ctr in max_multipliers["ctr"]:
             for m_cvr in max_multipliers["cvr"]:
@@ -182,13 +184,13 @@ if "params" not in st.session_state:
     st.session_state["params"] = DEFAULT_PARAMS.copy()
 
 # =========================
-# HEADER (limpo)
+# HEADER (corporate, sem splash)
 # =========================
-c_logo, c_text = st.columns([0.25, 1], gap="small")
+c_logo, c_text = st.columns([0.22, 1], gap="small")
 with c_logo:
-    st.image("assets/logo.svg", use_column_width=True)  # ícone sem texto
+    st.image("assets/logo.svg", use_column_width=True)
 with c_text:
-    st.title("GR-CRM IntelliDash")  # título único
+    st.title("GR-CRM IntelliDash")
 
 st.markdown("<div class='hr'></div>", unsafe_allow_html=True)
 
@@ -224,9 +226,10 @@ tabs = st.tabs([
     "🧯 Detratores & Pontos Positivos"
 ])
 
-# ---------- Parâmetros (com Salvar e Limpar) ----------
+# ---------- Parâmetros (com Salvar e Limpar em card) ----------
 with tabs[0]:
     st.subheader("Parâmetros do período")
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
 
     with st.form("params_form", clear_on_submit=False):
         p = st.session_state["params"]
@@ -260,7 +263,12 @@ with tabs[0]:
         with csave:
             submitted = st.form_submit_button("💾 Salvar", use_container_width=True)
         with cclear:
+            # botão secundário estilizado via CSS
+            st.markdown("<div class='btn-secondary'>", unsafe_allow_html=True)
             cleared = st.form_submit_button("🧹 Limpar", use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown("</div>", unsafe_allow_html=True)  # fecha card
 
     if submitted:
         p["meta"] = meta
@@ -276,45 +284,74 @@ with tabs[0]:
         st.session_state["params"] = p
         st.success("✅ Parâmetros salvos! Tabelas atualizadas.", icon="✅")
 
-    if cleared:
+    if 'cleared' in locals() and cleared:
         st.session_state["params"] = DEFAULT_PARAMS.copy()
         st.info("Campos limpos. Valores padrão restaurados.")
         st.rerun()
 
-# ---------- Dashboard ----------
+# ---------- Dashboard (cards corporativos) ----------
 with tabs[1]:
     st.subheader("Dashboard")
+
     k = compute_forward(st.session_state["params"])
     meta = st.session_state["params"]["meta"]
     gap = max(meta - k["receita_prev"], 0)
     ating = 0 if meta==0 else k["receita_prev"]/meta
-    m1,m2,m3,m4,m5 = st.columns(5)
-    m1.metric("Receita Prevista", fmt_money(k["receita_prev"]))
-    m2.metric("Meta", fmt_money(meta))
-    m3.metric("% Atingimento", f"{ating*100:.1f}%")
-    m4.metric("Gap para Meta", fmt_money(gap))
-    m5.metric("Compras Previstas", ceil_int(k["compras"]))
+
+    # KPIs em cards
+    st.markdown("<div class='metric-grid'>", unsafe_allow_html=True)
+    for label, value in [
+        ("Receita Prevista", fmt_money(k["receita_prev"])),
+        ("Meta", fmt_money(meta)),
+        ("% Atingimento", f"{ating*100:.1f}%"),
+        ("Gap para Meta", fmt_money(gap)),
+        ("Compras Previstas", ceil_int(k['compras']))
+    ]:
+        st.markdown(f"""
+        <div class="metric">
+          <div class="label">{label}</div>
+          <div class="value">{value}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("<div class='hr'></div>", unsafe_allow_html=True)
-    c1,c2 = st.columns([1.2,1])
+
+    c1,c2 = st.columns([1.25,1])
     with c1:
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
         df = funnel_df(k)
         fig = px.funnel(df, y="Etapa", x="Quantidade")
-        fig.update_layout(height=430, margin=dict(t=30,b=30,l=10,r=10))
+        fig.update_layout(height=420, margin=dict(t=30,b=30,l=10,r=10))
         st.plotly_chart(fig, use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
     with c2:
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.markdown("#### Funil (valores inteiros ⬆️)")
         st.dataframe(df, hide_index=True, use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("<div class='hr'></div>", unsafe_allow_html=True)
+
     cA,cB,cC = st.columns(3)
-    cA.metric("Envios no Período", ceil_int(k["envios_periodo"]))
-    cB.metric("Aberturas Previstas", ceil_int(k["aberturas"]))
-    cC.metric("Cliques Previstos", ceil_int(k["cliques"]))
+    for col, label, val in [
+        (cA, "Envios no Período", ceil_int(k["envios_periodo"])),
+        (cB, "Aberturas Previstas", ceil_int(k["aberturas"])),
+        (cC, "Cliques Previstos", ceil_int(k["cliques"]))
+    ]:
+        with col:
+            st.markdown(f"""
+            <div class="card">
+              <div class="label">{label}</div>
+              <div class="value">{val}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
 # ---------- Funil Inverso ----------
 with tabs[2]:
     st.subheader("Funil Inverso (o que é necessário para bater a meta)")
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
     p = st.session_state["params"]
     inv = compute_inverse(p["meta"], p)
     c1,c2,c3,c4,c5 = st.columns(5)
@@ -323,24 +360,28 @@ with tabs[2]:
     c3.metric("Aberturas necessárias", ceil_int(inv["aberturas_need"]))
     c4.metric("Cliques necessários", ceil_int(inv["cliques_need"]))
     c5.metric("Compras necessárias", ceil_int(inv["compras_need"]))
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # ---------- Taxa de Recompra ----------
 with tabs[3]:
     st.subheader("Taxa de Recompra")
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
     p = st.session_state["params"]
     clientes = max(p["clientes_ativos"], 1)
     pedidos = p["pedidos_periodo"]
     repetidos = p["pedidos_repetidos"]
     avg_pedidos_por_cliente = pedidos / clientes
     taxa_recompra = 0 if pedidos==0 else repetidos / pedidos
-    m1,m2,m3 = st.columns(3)
-    m1.metric("Pedidos por Cliente (média)", f"{avg_pedidos_por_cliente:.2f}")
-    m2.metric("Pedidos repetidos", ceil_int(repetidos))
-    m3.metric("Taxa de Recompra", f"{taxa_recompra*100:.1f}%")
+    c1,c2,c3 = st.columns(3)
+    c1.metric("Pedidos por Cliente (média)", f"{avg_pedidos_por_cliente:.2f}")
+    c2.metric("Pedidos repetidos", ceil_int(repetidos))
+    c3.metric("Taxa de Recompra", f"{taxa_recompra*100:.1f}%")
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # ---------- Plano Inteligente ----------
 with tabs[4]:
     st.subheader("Plano Inteligente")
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
     p = st.session_state["params"]
     best = optimize_plan(p["meta"], p)
     base_k = compute_forward(p)
@@ -372,10 +413,12 @@ with tabs[4]:
         })
         st.dataframe(plan_df, use_container_width=True, hide_index=True)
         st.download_button("⬇️ Baixar plano (CSV)", data=plan_df.to_csv(index=False).encode("utf-8"), file_name="plano_inteligente.csv", mime="text/csv")
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # ---------- Detratores & Pontos Positivos ----------
 with tabs[5]:
     st.subheader("Detratores & Pontos Positivos")
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
     tips, wins = heuristics(st.session_state["params"])
     col1,col2 = st.columns(2)
     with col1:
@@ -386,6 +429,7 @@ with tabs[5]:
         st.markdown("#### Pontos Positivos (ampliar)")
         for w in wins:
             st.markdown(f"- {w}")
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # ---------- FOOTER ----------
 st.markdown("<div class='hr'></div>", unsafe_allow_html=True)
